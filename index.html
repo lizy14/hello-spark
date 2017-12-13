@@ -1,0 +1,99 @@
+<html>
+
+<head>
+    <title>
+
+    </title>
+    <style>
+        #main {
+            width: 100%;
+            height: 100%;
+            min-height: 600px;
+            min-width: 600px;
+        }
+    </style>
+    <script src="https://cdn.bootcss.com/echarts/3.8.5/echarts.min.js"></script>
+</head>
+
+<body>
+    <div id="main"></div>
+    <script>
+        var myChart = echarts.init(document.getElementById('main'));
+        window.addEventListener('resize', function () { myChart.resize(); } );
+
+        fetch('http://123.206.18.178:5001/购买情况/次数/天')
+            .then(function (response) {
+                return response.json();
+            }).then(function (json) {
+                result = json.result;
+
+                // result: [["2017-01-01", 464], [...], ...]
+                option = {
+                    tooltip: {
+                        position: 'top'
+                    },
+                    visualMap: {
+                        min: 0,
+                        max: 1000,
+                        calculable: true,
+                        orient: 'horizontal',
+                        left: 'center',
+                        top: 'top'
+                    },
+
+                    calendar: [{
+                        top: 100,
+                        range: '2015',
+                        cellSize: [10, 10]
+                    }, {
+                        top: 200,
+                        range: '2014',
+                        cellSize: [10, 10]
+                    }, {
+                        top: 300,
+                        range: '2013',
+                        cellSize: [10, 10]
+                    }, {
+                        top: 400,
+                        range: '2012',
+                        cellSize: [10, 10]
+                    }, {
+                        top: 500,
+                        range: '2011',
+                        cellSize: [10, 10]
+                    }, ],
+
+                    series: [{
+                        type: 'heatmap',
+                        coordinateSystem: 'calendar',
+                        calendarIndex: 0,
+                        data: result
+                    }, {
+                        type: 'heatmap',
+                        coordinateSystem: 'calendar',
+                        calendarIndex: 1,
+                        data: result
+                    }, {
+                        type: 'heatmap',
+                        coordinateSystem: 'calendar',
+                        calendarIndex: 2,
+                        data: result
+                    }, {
+                        type: 'heatmap',
+                        coordinateSystem: 'calendar',
+                        calendarIndex: 3,
+                        data: result
+                    }, {
+                        type: 'heatmap',
+                        coordinateSystem: 'calendar',
+                        calendarIndex: 4,
+                        data: result
+                    }]
+                };
+
+                myChart.setOption(option);
+            });
+    </script>
+</body>
+
+</html>
