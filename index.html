@@ -21,7 +21,7 @@
         var myChart = echarts.init(document.getElementById('main'));
         window.addEventListener('resize', function () { myChart.resize(); } );
 
-        fetch('http://123.206.18.178:5001/购买情况/次数/天')
+        fetch('http://123.206.18.178:80/购买情况/次数/天')
             .then(function (response) {
                 return response.json();
             }).then(function (json) {

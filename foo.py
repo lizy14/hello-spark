@@ -62,7 +62,7 @@ def 设备在线数量():
     read_from_csv('EventClientChannelTune').registerTempTable('EventClientChannelTune')
     result = sqlContext.sql('''
         select 
-            Date(OriginTime) as Date, 
+            date(OriginTime) as Date, 
             count(distinct DeviceId) as DeviceCount 
         from EventClientChannelTune
         group by Date
@@ -75,4 +75,9 @@ def 设备在线数量():
     ] for row in result.collect())
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    import sys
+    if '--interactive' in sys.argv:
+        from IPython import embed
+        embed()
+    else: # if '--httpserver' in sys.argv
+        app.run(host='0.0.0.0', port=5000)
