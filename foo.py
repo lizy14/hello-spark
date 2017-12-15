@@ -19,23 +19,34 @@ sc = SparkContext(conf=conf)
 sc.addPyFile("foo.py")
 sqlContext = SQLContext(sc)
 
-def read_from_csv(table_name):
-    filename = "file:///home/ubuntu/DWDB/{}.csv".format(table_name)
-    return sqlContext.read.csv(filename, header=True, inferSchema=True)
 
+CSV_PATH = 'file:///home/ubuntu/DWDB/'
+
+
+def read_csv_into_temptable(table_name):
+    filename = "{}/{}.csv".format(CSV_PATH, table_name)
+    df = sqlContext.read.csv(filename, header=True, inferSchema=True)
+    df.registerTempTable(table_name)
+
+
+# load data
+
+read_csv_into_temptable('EventClientChannelTune')
+read_csv_into_temptable('Channels')
+read_csv_into_temptable('Purchase')
 
 def wrap_result(generator):
     return jsonify({
         'result': list(generator)
     })
 
+sql = lambda sql: sqlContext.sql(sql)
 
 @app.route('/购买情况/<method>/<period>')
 @crossdomain('*')
 def 购买情况(method, period):
 
-    lines = read_from_csv('Purchase')
-    lines = lines.select('Created', 'Currency', 'Price')
+    lines = sql('select Created, Currency, Price from Purchase')
     lines = lines.withColumn('年',  
         UserDefinedFunction(lambda x: x.year, IntegerType())('Created'))
     lines = lines.withColumn('天', 
@@ -59,8 +70,7 @@ def 购买情况(method, period):
 @app.route('/设备在线数量')
 @crossdomain('*')
 def 设备在线数量():
-    read_from_csv('EventClientChannelTune').registerTempTable('EventClientChannelTune')
-    result = sqlContext.sql('''
+    result = sql('''
         select 
             date(OriginTime) as Date, 
             count(distinct DeviceId) as DeviceCount 
@@ -73,6 +83,89 @@ def 设备在线数量():
         row['Date'].isoformat(),
         row['DeviceCount']
     ] for row in result.collect())
+
+@app.route('/收视率')
+@crossdomain('*')
+def 收视率():
+    result = sql('''
+        select 
+            Year, Month, TotalDuration, ChannelName 
+        from (
+            select 
+                year(OriginTime) as Year,
+                month(OriginTime) as Month, 
+                ChannelNumber, 
+                sum(Duration) as TotalDuration 
+            from 
+                EventClientChannelTune 
+            group by 
+                Year, Month, ChannelNumber
+        ) join Channels on Channels.ChannelNumber = EventClientChannelTune.ChannelNumber
+    ''')
+    return wrap_result([
+        "{}-{}".format(row['Year'], row['Month']),
+        row['ChannelName'],
+        row['TotalDuration'] / 86400. / 1000.
+    ] for row in result.collect())
+
+
+@app.route('/用户在线天数')
+@crossdomain('*')
+def 用户在线天数():
+    result = sql('''
+        select 
+            Year, 
+            Month, 
+            OnlineDays,
+            count(OnlineDays) as OnlineDaysCount 
+        from (
+            select
+                year(OriginTime) as Year,
+                month(OriginTime) as Month,
+                count(distinct date(OriginTime), DeviceId) as OnlineDays
+            from 
+                EventClientChannelTune
+            group by 
+                Year, Month, DeviceId
+        ) 
+        group by 
+            Year, Month, OnlineDays
+    ''')
+
+    return wrap_result([
+        "{}-{}".format(row['Year'], row['Month']),
+        row['OnlineDays'],
+        row['OnlineDaysCount']
+    ] for row in result.collect())
+
+
+@app.route('/换台次数')
+@crossdomain('*')
+def 换台次数():
+    result = sql('''
+        select 
+            DeviceOnDate,
+            count(DeviceOnDate) as DeviceOnDateCount 
+        from (
+            select 
+                date(OriginTime) as Date,
+                count(DeviceId) as DeviceOnDate
+            from
+                EventClientChannelTune
+            group by 
+                Date, DeviceId
+        )
+        group by
+            DeviceOnDate
+        order by
+            DeviceOnDate
+    ''')
+
+    return wrap_result([
+        row['DeviceOnDate'],
+        row['DeviceOnDateCount']
+    ] for row in result.collect())
+
 
 if __name__ == '__main__':
     import sys
